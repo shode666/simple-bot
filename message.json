@@ -1,0 +1,13 @@
+{
+  "build:sit": "curl -X POST  --user wirapong.ch:110dea61bf0a89f00cdca8f6fb60bcc8e9 http://jenkins.thaisamut.co.th/view/MSA/job/${job_name}/build",
+  "build:list": "http://jenkins.thaisamut.co.th/view/MSA/",
+  "show:email": "paponchai.ho@ocean.co.th|ฮ้าฟ \npiyapong.ph@ocean.co.th|โอ๊ต\nsuchanun.wo@ocean.co.th|แอน\nchuchat.sa@ocean.co.th|ฮ้อ \nnutcha.pa@ocean.co.th|กิฟ \nekkavit.du@ocean.co.th|เอก \npatiphat.ma@ocean.co.th|ดิว",
+  "show:phone": "1886 -> โต๊ะ LineOA\n1812 -> โต๊ะ Agent Portal\n1781 -> โต๊ะส้มโอ\n1764 -> เอก QA",
+  "show:team": "โตน สมชาย แจ่มจันทรา somchai.jm@ocean.co.th (Tel. 0866896804)\nกร วีรพงศ์ จันทร์โต wirapong.ch@ocean.co.th (Tel. 0875618605) \nปลิว ประสพโชค แต้ประเสริฐ prasobchoke.ta@ocean.co.th (Tel. 0830772669) \nโจ อนุชา โพธิ์ทรง anucha.ph@ocean.co.th (Tel. 0979232669) \nเปิ้ล สรายุทธ จิตราธนวัฒน์ sarayooth.ch@ocean.co.th (Tel. 0813383757) \nตอง กานดา ไทยสุวรรณ kanda.th@ocean.co.th (Tel. 0894571625) \nส้มโอ ณัฐสุดา ศรีเดชาพิทักษ์ natsuda.sr@ocean.co.th (Tel. 0956155636)\nโอ๊ต ปิยะพงษ์ พลภูมี piyapong.ph@ocean.co.th (Tel. 0896911906) \nแอน สุชานันท์ วงศ์เยาวรัตน์  suchanun.wo@ocean.co.th (Tel. 0988248932) \nฮ้อ ชูชาติ สามิตติธาดา chuchat.sa@ocean.co.th (Tel. 0879966712) \nกิ๊ฟ ณัชชา พานทอง nutcha.pa@ocean.co.th (Tel. 0886667848) \nเอก เอกวิทย์ ดวงจันทร์ ekkavit.du@ocean.co.th (Tel. 0878765318) \nโบ้ ธนภัทร์ พรมมา thanapat.pr@ocean.co.th (Tel. 0821614173) \nวิน วิรุฬห์กุมาร สิริรัตนานุรักษ์ virunkumarn.si@ocean.co.th (Tel. 0926819697) \nตั้ม บัณฑิต รััตนัง bundit.ra@ocean.co.th (Tel. 0895558934) \nเบ็นซ์ ปฏิภาณ องอาจ patipan.on@ocean.co.th (Tel. 0916989544) \nจ๊ะจ๋า ขวัญชนก อิ่มอมรชัย kwanchanok.im@ocean.co.th (Tel. 0832252304) \nเซนต์ สุทิน กลิ่นมาลัย sutin.kl@ocean.co.th (Tel. 0837767825) \nอาร์ฟ ปพนชัย ฮกชุน paponchai.ho@ocean.co.th (Tel. 0869949855)",
+  "show:msa": "การจัดสรร Port ของ MicroService\nhttp://wiki.thaisamut.co.th/pages/viewpage.action?pageId=700809317\nURL-SIT ( coming soon)\nhttps://intranet-api.ochidev.com/thaisamut/pub/nbsportal/index.html\nURL-UAT ( coming soon)\nhttps://intranet-api.ochiuat.com/thaisamut/pub/nbsportal/index.html\nURL-PRO\nhttps://intranet-api.ocean.co.th/thaisamut/pub/nbsportal/login.html database: 11.100.8.42\nport: default\n",
+  "show:theme": "text dark: #666666\nprimary: #00A6CE\norange: #FF9246\ngray: #DADADA\nred: #E92020\ngreen: #11B719",
+  "show:resetpassword": "https://ithelpdesk.ocean.co.th/\n1711",
+  "show:bill": "บริษัท ไทยสมุทรประกันชีวิต จำกัด (มหาชน)\nสำนักงานใหญ่\n170/74-83 อาคารโอเชี่ยนทาวเวอร์ 1 ถ.รัชดาภิเษก\nแขวงคลองเตย เขตคลองเตยกรุงเทพฯ 10110\nเลขประจำตัวผู้เสียภาษี : 0107555000210",
+  "oceanpad:pulllog": "adb pull /data/data/th.co.ocean.dev.oceanpad/databases",
+  "show:config": "SIT db: 11.100.8.42\n"
+}
