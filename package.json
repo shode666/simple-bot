@@ -6,6 +6,9 @@
   "keywords": [],
   "author": "Bundit Rattanang",
   "license": "ISC",
+  "scripts": {
+    "start": "node bot.js"
+  },
   "dependencies": {
     "discord.js": "^12.0.1",
     "dotenv": "^8.2.0"
