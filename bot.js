@@ -29,7 +29,7 @@ client.on('message', msg => {
     msg.channel.send(`command registed say: ${g[1]} `)
   }else if(unRegCommand.test(msg.content)){
     const g = msg.content.match(unRegCommand);
-    if(!!g && !!g[1] &&  messages[g[1]])
+    if(!!g && !!g[1] &&  !!messages[g[1]])
     delete messages[g[1]];
     msg.channel.send(`command removed: ${g[1]} `)
   }
