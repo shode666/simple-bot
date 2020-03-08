@@ -72,7 +72,7 @@ const goRandom = (msg,group)=> {
   switch(String(group[1]).toLowerCase()){
     case "cardid":
       let ran = isNaN(group[2])?"":group[2];
-      while(ran.length<13){
+      while(ran.length<12){
         ran+=String(Math.floor(Math.random()*10));
       }
       ran+=(11-ran.split("").reduce((sum,cur,idx)=>sum+(Number(cur)*(13-idx)),0)%11)%10
