@@ -71,7 +71,7 @@ const goRandom = (msg,group)=> {
   console.log("random",group[1],group[2])
   switch(String(group[1]).toLowerCase()){
     case "cardid":
-      let ran = isNaN(group[2])?"":group[2];
+      let ran = isNaN(group[2])?"":group[2].substr(0,12);
       while(ran.length<12){
         ran+=String(Math.floor(Math.random()*10));
       }
