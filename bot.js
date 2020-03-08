@@ -69,7 +69,7 @@ client.on('message', msg => {
 
 const goRandom = (msg,group)=> {
   console.log("random",group[1],group[2])
-  switch(String(group[0]).toLowerCase()){
+  switch(String(group[1]).toLowerCase()){
     case "cardid":
       let ran = isNaN(group[2])?"":group[2];
       while(ran.length<13){
