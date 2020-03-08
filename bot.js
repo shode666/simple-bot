@@ -35,7 +35,7 @@ doc.onSnapshot(documentSnapshot => {
 const regCommand1 = /^!set\s*"([^"]+)"\s*"?([^"]*)"?\s*$/;
 const regCommand2 = /^!set\s*([^" ]+)\s*"?([^"]*)"?\s*$/;
 const unRegCommand = /^!unset\s*"?([^"]+)"?\s*$/
-const randomize = /^!random\s*"?([^" ]+)"?\s*"?([^"]*)"?\s*$/gi;
+const randomize = /^!random\s*"?([^" ]+)"?\s*"?([^"]*)"?\s*$/i;
 
 client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -68,6 +68,7 @@ client.on('message', msg => {
 
 
 const goRandom = (msg,group)=> {
+  console.log("random",group[1],group[2])
   switch(String(group[0]).toLowerCase()){
     case "cardid":
       let ran = isNaN(group[2])?"":group[2];
