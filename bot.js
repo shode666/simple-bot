@@ -32,9 +32,10 @@ doc.onSnapshot(documentSnapshot => {
 }, err => {
   console.log(`Encountered error: ${err}`);
 });
-const regCommand1 = /^!set\s*"([^"]+)"\s*"?([^"]*)"?\t*$/;
-const regCommand2 = /^!set\s*([^" ]+)\s*"?([^"]*)"?\t*$/;
+const regCommand1 = /^!set\s*"([^"]+)"\s*"?([^"]*)"?\s*$/;
+const regCommand2 = /^!set\s*([^" ]+)\s*"?([^"]*)"?\s*$/;
 const unRegCommand = /^!unset\s*"?([^"]+)"?\s*$/
+const randomize = /^!random\s*"?([^" ]+)"?\s*"?([^"]*)"?\s*$/gi;
 
 client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -62,7 +63,21 @@ client.on('message', msg => {
       doc.set(messages);
       msg.channel.send(`command removed: ${g[1]} `)
     }
-  }
+  }else if(randomize.test(msg.content))goRandom(msg,msg.content.match(randomize))
 });
+
+
+const goRandom = (msg,group)=> {
+  switch(String(group[0]).toLowerCase()){
+    case "cardid":
+      let ran = isNaN(group[2])?"":group[2];
+      while(ran.length<13){
+        ran+=String(Math.floor(Math.random()*10));
+      }
+      ran+=(11-ran.split("").reduce((sum,cur,idx)=>sum+(Number(cur)*(13-idx)),0)%11)%10
+      msg.channel.send(`Random cardID: ${ran} `)
+  }
+}
+
 
 client.login(process.env.DISCORD_TOKEN);
