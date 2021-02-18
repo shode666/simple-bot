@@ -96,6 +96,7 @@ function startDailyUpdate(db,__requestHeader,leagueId){
   const yesterDay = today.subtract(1, 'days')
   const formatYesterDay = yesterDay.format("YYYY-MM-DD");
   return function(){
+    console.log(`schedule start`,new Date())
     collection
     .where("event_timestamp",">=",startTz)
     .where("event_timestamp","<=",endTz)
