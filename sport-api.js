@@ -105,10 +105,14 @@ function startDailyUpdate(db,__requestHeader,leagueId){
     .get()
     .then(fixtures=>{
       let quota = 80;
+      let timeout = 0;
       // update fixture
       updateDayFixture(db,__requestHeader,leagueId,formatYesterDay)
       // call standing table
-      leagueStading(db,__requestHeader,leagueId);
+      timeout+=16*1000;
+      setTimeout(()=>{
+        leagueStading(db,__requestHeader,leagueId);
+      },timeout)
 
       if(fixtures.size===0) return;
       const matches = [];
@@ -117,8 +121,11 @@ function startDailyUpdate(db,__requestHeader,leagueId){
       quota -= matches.length;
       matches.forEach(match=>{
         // call Odd now
-        leagueOdd(db,__requestHeader,leagueId,match.fixture_id);
 
+        timeout+=16*1000;
+        setTimeout(()=>{
+          leagueOdd(db,__requestHeader,leagueId,match.fixture_id);
+        },timeout)
       })
     })
     .catch(err=>console.error(err));
