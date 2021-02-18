@@ -12,7 +12,7 @@ module.exports = function(db){
   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
     console.log('football-api','init and job for',leagueId)
     initLeague(db,__requestHeader,leagueId);
-    const jobber = schedule.scheduleJob('41 1 * * *', startDailyUpdate(db,__requestHeader,leagueId));
+    const jobber = schedule.scheduleJob('44 1 * * *', startDailyUpdate(db,__requestHeader,leagueId));
   })
 }
 
@@ -176,7 +176,7 @@ function leagueOdd(db,headers,leagueId,fixtureId){
   .catch(err=>console.error(err));
 }
 
-function updateDayFixture(db,__requestHeader,leagueId,formatDate){
+function updateDayFixture(db,headers,leagueId,formatDate){
   if(!leagueId) return;
 
   axios.request({
