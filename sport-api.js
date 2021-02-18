@@ -12,12 +12,13 @@ module.exports = function(db){
   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
     console.log('football-api','init and job for',leagueId)
     initLeague(db,__requestHeader,leagueId);
-    schedule.scheduleJob('20 1 * * *', 'Europe/London', startDailyUpdate(db,__requestHeader,leagueId));
+    const jobber = schedule.scheduleJob('34 1 * * *', 'Europe/London', startDailyUpdate(db,__requestHeader,leagueId));
   })
 }
 
 function initLeague(db,headers,leagueId){
   const collection = db.collection("football-league")
+  console.log('football-api','schedule job for',leagueId)
   return function(){
 
     collection.doc(leagueId).get().then(doc=>{
