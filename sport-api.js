@@ -12,7 +12,7 @@ module.exports = function(db){
   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
     console.log('football-api','init and job for',leagueId)
     initLeague(db,__requestHeader,leagueId);
-    const jobber = schedule.scheduleJob('34 1 * * *', 'Europe/London', startDailyUpdate(db,__requestHeader,leagueId));
+    const jobber = schedule.scheduleJob('41 1 * * *', startDailyUpdate(db,__requestHeader,leagueId));
   })
 }
 
