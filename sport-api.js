@@ -10,8 +10,9 @@ module.exports = function(db){
   }
   const __LEAGUES = process.env.RAPIDAPI_LEAGUE_ID||"";
   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
+    console.log('football-api','init and job for',leagueId)
     initLeague(db,__requestHeader,leagueId);
-    schedule.scheduleJob('15 1 * * *', 'Europe/London', startDailyUpdate(db,__requestHeader,leagueId));
+    schedule.scheduleJob('20 1 * * *', 'Europe/London', startDailyUpdate(db,__requestHeader,leagueId));
   })
 }
 
