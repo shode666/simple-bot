@@ -11,7 +11,7 @@ module.exports = function(db){
   const __LEAGUES = process.env.RAPIDAPI_LEAGUE_ID||"";
   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
     initLeague(db,__requestHeader,leagueId);
-    schedule.scheduleJob('30 0 * * *', 'Europe/London', () => startDailyUpdate(db,__requestHeader,leagueId));
+    schedule.scheduleJob('15 1 * * *', 'Europe/London', () => startDailyUpdate(db,__requestHeader,leagueId));
   })
 }
 
