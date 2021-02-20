@@ -1,14 +1,10 @@
 const schedule = require('node-schedule-tz');
-const axios = require("axios").default;
+const fetch = require("./fetch");
 const moment = require('moment-timezone')
 
 let matchDailyCount = [];
 const MATCH_LENGTH = 120*60;
 module.exports = function(db){
-  const __requestHeader = {
-    "x-rapidapi-key": process.env.RAPIDAPI_KEY,
-    "x-rapidapi-host": process.env.RAPIDAPI_HOST
-  }
   const __LEAGUES = process.env.RAPIDAPI_LEAGUE_ID||"";
 
   schedule.scheduleJob('0 0 * * *', ()=>{
@@ -18,21 +14,23 @@ module.exports = function(db){
     let h=1,m=0;
   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
     console.log('football-api','init and job for',leagueId)
-    initLeague(db,__requestHeader,leagueId);
+    initLeague(db,leagueId);
     schedule.scheduleJob(`${m} ${h} * * *`, ()=>{
-      startDailyUpdate(db,__requestHeader,leagueId);
+      startDailyUpdate(db,leagueId);
     });
+    //* for test
+    // startDailyUpdate(db,leagueId);
     m+=5;
     if(m>=60){
       h++; m=0;
     }
   });
   schedule.scheduleJob('0 8 * * *', ()=>{
-    liveScore(db,__requestHeader,leagueId);
+    liveScore(db,leagueId);
   });
 }
 
-function initLeague(db,headers,leagueId){
+function initLeague(db,leagueId){
   const collection = db.collection("football-league")
   console.log('football-api','schedule job for',leagueId)
   collection.doc(leagueId).get().then(doc=>{
@@ -40,26 +38,13 @@ function initLeague(db,headers,leagueId){
       console.log(`league ${leagueId} "${doc.data().name}"  config founded`);
       return;
     }
-    axios.request({
-      method: 'GET',
-      url: `https://${process.env.RAPIDAPI_HOST}/v2/leagues/league/${leagueId}`,
-      params: {timezone: 'Europe/London'},
-      headers: headers
-    }).then( (response) => {
-      const {api:{leagues}={}} = response.data;
+    fetch(`https://${process.env.RAPIDAPI_HOST}/v2/leagues/league/${leagueId}`,{timezone: 'Europe/London'})
+    .then(({leagues})=>{
       if(!leagues||!leagues.length)return;
-
       return collection.doc(leagueId).set(leagues[0], { merge: true });
-
-    }).then(() =>{
-      return axios.request({
-        method: 'GET',
-        url: `https://${process.env.RAPIDAPI_HOST}/v2/fixtures/league/${leagueId}`,
-        params: {timezone: 'Europe/London'},
-        headers: headers
-      })
-    }).then((response) =>{
-      const {api:{fixtures}={}} = response.data;
+    })
+    .then(() =>fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/league/${leagueId}`,{timezone: 'Europe/London'}))
+    .then(({fixtures})=>{
       if(!fixtures||!fixtures.length)return;
       console.log(`fetched league ${leagueId} fetching fixures Collection`)
       const fixureCollection = collection.doc(leagueId).collection('fixtures');
@@ -74,15 +59,9 @@ function initLeague(db,headers,leagueId){
       });
       console.log('commit batch fixtures')
       return batch.commit();
-    }).then(() =>{
-      return axios.request({
-        method: 'GET',
-        url: `https://${process.env.RAPIDAPI_HOST}/v2/teams/league/${leagueId}`,
-        params: {timezone: 'Europe/London'},
-        headers: headers
-      })
-    }).then((response) =>{
-      const {api:{teams}={}} = response.data;
+    })
+    .then(() =>fetch(`https://${process.env.RAPIDAPI_HOST}/v2/teams/league/${leagueId}`,{timezone: 'Europe/London'}))
+    .then(({teams})=>{
       if(!teams||!teams.length)return;
       console.log(`fetched league ${leagueId} fetching teams Collection`)
       const teamCollection = collection.doc(leagueId).collection('teams');
@@ -97,13 +76,13 @@ function initLeague(db,headers,leagueId){
       });
       console.log('commit batch teams')
       return batch.commit();
-    }).catch(function (error) {
+    }).catch( (error) => {
       console.error(`error fetch leagueId ${leagueId}`,error);
     });
-  }).catch(err=>console.error(err));
+  });
 }
 
-function startDailyUpdate(db,__requestHeader,leagueId){
+function startDailyUpdate(db,leagueId){
 
   const collection = db.collection("football-league").doc(String(leagueId)).collection('fixtures');
   const today = moment().clone().tz('Europe/London');
@@ -124,10 +103,10 @@ function startDailyUpdate(db,__requestHeader,leagueId){
       return timeout;
     }
     // update fixture
-    updateDayFixture(db,__requestHeader,leagueId,formatYesterDay)
+    updateDayFixture(db,leagueId,formatYesterDay)
     // call standing table
     setTimeout(()=>{
-      leagueStading(db,__requestHeader,leagueId);
+      leagueStading(db,leagueId);
     },setDelay())
     console.log('fixtures found ',fixtures.size)
     if(fixtures.size===0) return;
@@ -141,23 +120,18 @@ function startDailyUpdate(db,__requestHeader,leagueId){
     matches.forEach(match=>{
       // call Odd now
       setTimeout(()=>{
-        leagueOdd(db,__requestHeader,leagueId,match);
+        leagueOdd(db,leagueId,match);
       },setDelay())
     })
   })
   .catch(err=>console.error(err));
 }
 
-function leagueStading(db,headers,leagueId){
+function leagueStading(db,leagueId){
   const collection = db.collection("football-league").doc(String(leagueId)).collection('table');
   if(!leagueId) return;
-
-  axios.request({
-    method: 'GET',
-    url: `https://${process.env.RAPIDAPI_HOST}/v2/leagueTable/${leagueId}`,
-    headers: headers
-  }).then( (response) => {
-    const {api:{standings:[tableRanking]}=[]} = response.data;
+  fetch(`https://${process.env.RAPIDAPI_HOST}/v2/leagueTable/${leagueId}`)
+  .then( ({standings:[tableRanking]}) => {
     if(!tableRanking||!tableRanking.length)return;
     const batch = db.batch();
     tableRanking.forEach(ranking=>{
@@ -175,17 +149,13 @@ function leagueStading(db,headers,leagueId){
   .catch(err=>console.error(err));
 }
 
-function leagueOdd(db,headers,leagueId,match){
+function leagueOdd(db,leagueId,match){
   if(!match?.fixture_id) return;
   const fixtureId = match?.fixture_id
   const matchVS = `${match?.homeTeam?.team_name} v ${match?.awayTeam?.team_name}`;
   const fixtureCollectionRef = db.collection("football-league").doc(String(leagueId)).collection("fixtures");
-  axios.request({
-    method: 'GET',
-    url: `https://${process.env.RAPIDAPI_HOST}/v2/odds/fixture/${fixtureId}/label/1`,
-    headers: headers
-  }).then( (response) => {
-    const {api:{odds}={}} = response.data;
+  fetch(`https://${process.env.RAPIDAPI_HOST}/v2/odds/fixture/${fixtureId}/label/1`)
+  .then( ({odds}) => {
     if(!odds||!odds.length)return;
     const {fixture,bookmakers} = odds[0];
     if(fixture&&bookmakers){
@@ -201,16 +171,10 @@ function leagueOdd(db,headers,leagueId,match){
   .catch(err=>console.error(err));
 }
 
-function updateDayFixture(db,headers,leagueId,formatDate){
+function updateDayFixture(db,leagueId,formatDate){
   if(!leagueId) return;
-
-  axios.request({
-    method: 'GET',
-    url: `https://${process.env.RAPIDAPI_HOST}/v2/fixtures/league/${leagueId}/${formatDate}`,
-    params: {timezone: 'Europe/London'},
-    headers: headers
-  }).then( (response) => {
-    const {api:{fixtures}={}} = response.data;
+  fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/league/${leagueId}/${formatDate}`, {timezone: 'Europe/London'})
+  .then( ({fixtures}) => {
     if(!fixtures||!fixtures.length)return;
     console.log(`fetched league ${leagueId} fetching fixures Collection`)
     const fixureCollection = db.collection("football-league").doc(String(leagueId)).collection('fixtures');
@@ -246,26 +210,21 @@ function liveScore(db,headers){
   const formatToday = today.format("YYYY-MM-DD");
 
   schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/15 * * * *` }, ()=>{
-    fetchLiveScore(db,headers,leagues);
+    fetchLiveScore(db,leagues);
   });
 
   matchDailyCount.forEach(({leagueId})=>{
     maxTime+=5
     schedule.scheduleJob(new Date(maxTime*1000),()=>{
       console.log("last update fixture for",leagueId,"date",formatToday)
-      updateDayFixture(db,headers,leagueId,formatToday);
+      updateDayFixture(db,leagueId,formatToday);
     });
   })
 }
 
 function fetchLiveScore(db,headers,leagues){
-  axios.request({
-    method: 'GET',
-    url: `https://${process.env.RAPIDAPI_HOST}/v2/fixtures/live/${leagues}`,
-    params: {timezone: 'Europe/London'},
-    headers
-  }).then(function (response) {
-    const {api:{fixtures}={}} = response.data;
+  fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/live/${leagues}`,{timezone: 'Europe/London'})
+  .then(({fixtures})=>{
     if(!fixtures||!fixtures.length)return;
     console.log(`fetched live fixture ${leagues} fetching fixures Collection`)
     const batch = db.batch();
@@ -280,7 +239,7 @@ function fetchLiveScore(db,headers,leagues){
     });
     console.log('commit batch fixtures')
     return batch.commit();
-  }).catch(function (error) {
+  }).catch( (error) => {
     console.error(error);
   });
 }
