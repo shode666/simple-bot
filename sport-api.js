@@ -2,19 +2,34 @@ const schedule = require('node-schedule-tz');
 const axios = require("axios").default;
 const moment = require('moment-timezone')
 
-
+let matchDailyCount = [];
+const MATCH_LENGTH = 120*60;
 module.exports = function(db){
   const __requestHeader = {
     "x-rapidapi-key": process.env.RAPIDAPI_KEY,
     "x-rapidapi-host": process.env.RAPIDAPI_HOST
   }
   const __LEAGUES = process.env.RAPIDAPI_LEAGUE_ID||"";
+
+  schedule.scheduleJob('0 0 * * *', ()=>{
+    console.log("reset match day counter");
+    matchDailyCount = [];
+  })
+    let h=1,m=0;
   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
     console.log('football-api','init and job for',leagueId)
     initLeague(db,__requestHeader,leagueId);
-    schedule.scheduleJob('15 1 * * *', startDailyUpdate.bind(this,db,__requestHeader,leagueId));
-    startDailyUpdate(db,__requestHeader,leagueId);
-  })
+    schedule.scheduleJob(`${m} ${h} * * *`, ()=>{
+      startDailyUpdate(db,__requestHeader,leagueId);
+    });
+    m+=5;
+    if(m>=60){
+      h++; m=0;
+    }
+  });
+  schedule.scheduleJob('0 8 * * *', ()=>{
+    liveScore(db,__requestHeader,leagueId);
+  });
 }
 
 function initLeague(db,headers,leagueId){
@@ -89,6 +104,7 @@ function initLeague(db,headers,leagueId){
 }
 
 function startDailyUpdate(db,__requestHeader,leagueId){
+
   const collection = db.collection("football-league").doc(String(leagueId)).collection('fixtures');
   const today = moment().clone().tz('Europe/London');
   const startTz = today.startOf('day').unix();
@@ -118,9 +134,12 @@ function startDailyUpdate(db,__requestHeader,leagueId){
     const matches = fixtures.docs.map(fi=>fi.data())
 
     quota -= matches.length;
+    const eventDates = matches.map(o=>o.event_timestamp);
+    const minTime = Math.min(eventDates);
+    const maxTime = Math.max(eventDates)+MATCH_LENGTH;
+    matchDailyCount.push({leagueId,minTime,maxTime})
     matches.forEach(match=>{
       // call Odd now
-
       setTimeout(()=>{
         leagueOdd(db,__requestHeader,leagueId,match);
       },setDelay())
@@ -209,4 +228,59 @@ function updateDayFixture(db,headers,leagueId,formatDate){
 
   })
   .catch(err=>console.error(err));
+}
+
+function liveScore(db,headers){
+  if(!matchDailyCount.length) {
+    console.log("no match for today")
+    return;
+  }
+  const leagues = matchDailyCount.map(o=>o.leagueId).join("-");
+  console.log("Enter Live score for league_ids",leagues)
+  const minTime = Math.min(matchDailyCount.map(o=>o.minTime));
+  let maxTime = Math.man(matchDailyCount.map(o=>o.maxTime));
+  const startTime = new Date(minTime*1000);
+  const endTime = new Date(maxTime*1000);
+  console.log("Fetch every 15 minute start",startTime,"end",endTime)
+  const today = moment().clone().tz('Europe/London');
+  const formatToday = today.format("YYYY-MM-DD");
+
+  schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/15 * * * *` }, ()=>{
+    fetchLiveScore(db,headers,leagues);
+  });
+
+  matchDailyCount.forEach(({leagueId})=>{
+    maxTime+=5
+    schedule.scheduleJob(new Date(maxTime*1000),()=>{
+      console.log("last update fixture for",leagueId,"date",formatToday)
+      updateDayFixture(db,headers,leagueId,formatToday);
+    });
+  })
+}
+
+function fetchLiveScore(db,headers,leagues){
+  axios.request({
+    method: 'GET',
+    url: `https://${process.env.RAPIDAPI_HOST}/v2/fixtures/live/${leagues}`,
+    params: {timezone: 'Europe/London'},
+    headers
+  }).then(function (response) {
+    const {api:{fixtures}={}} = response.data;
+    if(!fixtures||!fixtures.length)return;
+    console.log(`fetched live fixture ${leagues} fetching fixures Collection`)
+    const batch = db.batch();
+    fixtures.forEach(fixure=>{
+      const {fixture_id, league_id} = fixure;
+      const fixureCollection = db.collection("football-league").doc(String(league_id)).collection('fixtures');
+      if(fixture_id){
+        console.log(`batch update livescore ${league_id} fixure_id ${fixture_id}`)
+        const fixtureRef = fixureCollection.doc(String(fixture_id));
+        batch.update(fixtureRef, fixure);
+      }
+    });
+    console.log('commit batch fixtures')
+    return batch.commit();
+  }).catch(function (error) {
+    console.error(error);
+  });
 }
