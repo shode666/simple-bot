@@ -12,7 +12,8 @@ module.exports = function(db){
   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
     console.log('football-api','init and job for',leagueId)
     initLeague(db,__requestHeader,leagueId);
-    const jobber = schedule.scheduleJob('15 0 * * *', startDailyUpdate(db,__requestHeader,leagueId));
+    schedule.scheduleJob('15 1 * * *', startDailyUpdate(db,__requestHeader,leagueId));
+    // startDailyUpdate(db,__requestHeader,leagueId)()
   })
 }
 
@@ -113,10 +114,9 @@ function startDailyUpdate(db,__requestHeader,leagueId){
       setTimeout(()=>{
         leagueStading(db,__requestHeader,leagueId);
       },timeout)
-
+      console.log('fixtures found ',fixtures.size)
       if(fixtures.size===0) return;
-      const matches = [];
-      fixtures.forEach(matchRef=>matches.push(matchRef.data()));
+      const matches = fixtures.docs.map(fi=>fi.data())
 
       quota -= matches.length;
       matches.forEach(match=>{
