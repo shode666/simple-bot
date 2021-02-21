@@ -12,15 +12,14 @@ module.exports = function(db){
     console.log("reset match day counter");
     matchDailyCount = [];
   })
-    let h=1,m=0;
+    let h=1,m=0,idx=1;
   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
     console.log('football-api','init and job for',leagueId)
     initLeague(db,leagueId);
     schedule.scheduleJob(`${m} ${h} * * *`, ()=>{
       startDailyUpdate(db,leagueId);
     });
-    //* for test
-    setTimeout(()=>startDailyUpdate(db,leagueId),1000*60);
+    setTimeout(()=>startDailyUpdate(db,leagueId),90000*(idx++));
     m+=5;
     if(m>=60){
       h++; m=0;
@@ -29,7 +28,7 @@ module.exports = function(db){
   schedule.scheduleJob('0 8 * * *', ()=>{
     liveScore(db);
   });
-  setTimeout(()=>liveScore(db),1000*180)
+  setTimeout(()=>liveScore(db),90000*(idx+2))
 }
 
 function initLeague(db,leagueId){
