@@ -1,6 +1,7 @@
 const schedule = require('node-schedule-tz');
 const fetch = require("./fetch");
 const moment = require('moment-timezone')
+const _ =require('lodash');
 
 let matchDailyCount = [];
 const MATCH_LENGTH = 120*60;
@@ -19,64 +20,47 @@ module.exports = function(db){
       startDailyUpdate(db,leagueId);
     });
     //* for test
-    // startDailyUpdate(db,leagueId);
+    startDailyUpdate(db,leagueId);
     m+=5;
     if(m>=60){
       h++; m=0;
     }
   });
   schedule.scheduleJob('0 8 * * *', ()=>{
-    liveScore(db,leagueId);
+    liveScore(db);
   });
 }
 
 function initLeague(db,leagueId){
-  const collection = db.collection("football-league")
+  const rootRef = db.ref("football-league")
   console.log('football-api','schedule job for',leagueId)
-  collection.doc(leagueId).get().then(doc=>{
-    if (doc.exists){
-      console.log(`league ${leagueId} "${doc.data().name}"  config founded`);
+  rootRef.child(`league/${leagueId}`).get().then(doc=>{
+    const data = doc.val();
+    if (data){
+      console.log(`league ${leagueId} "${data.name}"  config founded`);
       return;
     }
     fetch(`https://${process.env.RAPIDAPI_HOST}/v2/leagues/league/${leagueId}`,{timezone: 'Europe/London'})
     .then(({leagues})=>{
       if(!leagues||!leagues.length)return;
-      return collection.doc(leagueId).set(leagues[0], { merge: true });
+      return rootRef.child(`league/${leagueId}`).set(leagues[0]);
     })
     .then(() =>fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/league/${leagueId}`,{timezone: 'Europe/London'}))
     .then(({fixtures})=>{
       if(!fixtures||!fixtures.length)return;
-      console.log(`fetched league ${leagueId} fetching fixures Collection`)
-      const fixureCollection = collection.doc(leagueId).collection('fixtures');
-      const batch = db.batch();
+      console.log(`fetched league ${leagueId} fetching fixtures Collection`)
+      const fixureCollection = rootRef.child(`fixtures/${leagueId}`);
       fixtures.forEach(fixure=>{
         const {fixture_id} = fixure;
         if(fixture_id){
           console.log(`batch add task for league ${leagueId} fixure_id ${fixture_id}`)
-          const fixtureRef = fixureCollection.doc(String(fixture_id));
-          batch.set(fixtureRef, fixure);
+          fixureCollection.child(String(fixture_id)).set(fixure)
         }
       });
-      console.log('commit batch fixtures')
-      return batch.commit();
+      return;
     })
-    .then(() =>fetch(`https://${process.env.RAPIDAPI_HOST}/v2/teams/league/${leagueId}`,{timezone: 'Europe/London'}))
-    .then(({teams})=>{
-      if(!teams||!teams.length)return;
-      console.log(`fetched league ${leagueId} fetching teams Collection`)
-      const teamCollection = collection.doc(leagueId).collection('teams');
-      const batch = db.batch();
-      teams.forEach(team=>{
-        const {team_id} = team;
-        if(team_id){
-          console.log(`batch add task for league ${leagueId} teams_id ${team_id}`)
-          const teamRef = teamCollection.doc(String(team_id));
-          batch.set(teamRef, team);
-        }
-      });
-      console.log('commit batch teams')
-      return batch.commit();
-    }).catch( (error) => {
+    .then(() =>leagueStading(db,leagueId))
+    .catch( (error) => {
       console.error(`error fetch leagueId ${leagueId}`,error);
     });
   });
@@ -84,18 +68,19 @@ function initLeague(db,leagueId){
 
 function startDailyUpdate(db,leagueId){
 
-  const collection = db.collection("football-league").doc(String(leagueId)).collection('fixtures');
+  const collection = db.ref(`football-league/fixtures/${String(leagueId)}`);
   const today = moment().clone().tz('Europe/London');
   const startTz = today.startOf('day').unix();
   const endTz = today.endOf('day').unix();
   const yesterDay = today.subtract(1, 'days')
   const formatYesterDay = yesterDay.format("YYYY-MM-DD");
   console.log(`schedule start`,new Date())
-  collection
-  .where("event_timestamp",">=",startTz)
-  .where("event_timestamp","<=",endTz)
-  .get()
-  .then(fixtures=>{
+  collection.get()
+  .then(snapshot=>{
+    const matches = _.filter(snapshot.val(),({event_timestamp})=>{
+      return event_timestamp>=startTz && event_timestamp <=endTz;
+    })
+
     let quota = 80;
     let timeout = 0;
     const setDelay = () =>{
@@ -108,9 +93,8 @@ function startDailyUpdate(db,leagueId){
     setTimeout(()=>{
       leagueStading(db,leagueId);
     },setDelay())
-    console.log('fixtures found ',fixtures.size)
-    if(fixtures.size===0) return;
-    const matches = fixtures.docs.map(fi=>fi.data())
+    console.log('fixtures found ',matches.length)
+    if(matches.length===0) return;
 
     quota -= matches.length;
     const eventDates = matches.map(o=>o.event_timestamp);
@@ -128,22 +112,21 @@ function startDailyUpdate(db,leagueId){
 }
 
 function leagueStading(db,leagueId){
-  const collection = db.collection("football-league").doc(String(leagueId)).collection('table');
+  const teamCollection = db.ref(`football-league/table/${String(leagueId)}`)
   if(!leagueId) return;
   fetch(`https://${process.env.RAPIDAPI_HOST}/v2/leagueTable/${leagueId}`)
   .then( ({standings:[tableRanking]}) => {
     if(!tableRanking||!tableRanking.length)return;
-    const batch = db.batch();
-    tableRanking.forEach(ranking=>{
-      const {rank} = ranking;
-      if(rank){
-        console.log(`batch add task for league ${leagueId} table Rank ${rank}`)
-        const tableRef = collection.doc(String(rank).padStart(2, '0'));
-        batch.set(tableRef, ranking);
-      }
-    });
-    console.log('commit batch table')
-    return batch.commit();
+      console.log(`fetched league ${leagueId} fetching teams Collection`)
+      tableRanking.forEach(ranking=>{
+        const {rank} = ranking;
+        if(rank){
+          console.log(`batch add task for league ${leagueId} table Rank ${rank}`)
+          teamCollection.child(String(rank).padStart(2, '0')).set(ranking)
+        }
+      });
+      console.log('commit batch teams')
+      return;
 
   })
   .catch(err=>console.error(err));
@@ -153,7 +136,7 @@ function leagueOdd(db,leagueId,match){
   if(!match?.fixture_id) return;
   const fixtureId = match?.fixture_id
   const matchVS = `${match?.homeTeam?.team_name} v ${match?.awayTeam?.team_name}`;
-  const fixtureCollectionRef = db.collection("football-league").doc(String(leagueId)).collection("fixtures");
+  const fixtureCollectionRef = db.ref(`football-league/fixtures/${leagueId}`);
   fetch(`https://${process.env.RAPIDAPI_HOST}/v2/odds/fixture/${fixtureId}/label/1`)
   .then( ({odds}) => {
     if(!odds||!odds.length)return;
@@ -162,9 +145,8 @@ function leagueOdd(db,leagueId,match){
       const {fixture_id} = fixture;
       const bookmark = bookmakers.find(b=>b.bookmaker_id=== 6);
       if(bookmark&&bookmark.bets){
-        const fixtureRef = fixtureCollectionRef.doc(String(fixture_id))
         console.log(`set odd bwin for league_id ${leagueId} table fixture_id ${fixture_id} ${matchVS}`)
-        return fixtureRef.update({odds:bookmark.bets[0]})
+        return fixtureCollectionRef.child(String(fixture_id)).update({odds:bookmark.bets[0]})
       }
     }
   })
@@ -176,25 +158,22 @@ function updateDayFixture(db,leagueId,formatDate){
   fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/league/${leagueId}/${formatDate}`, {timezone: 'Europe/London'})
   .then( ({fixtures}) => {
     if(!fixtures||!fixtures.length)return;
-    console.log(`fetched league ${leagueId} fetching fixures Collection`)
-    const fixureCollection = db.collection("football-league").doc(String(leagueId)).collection('fixtures');
-    const batch = db.batch();
+    console.log(`fetched league ${leagueId} fetching fixtures Collection`)
+    const fixtureCollectionRef = db.ref(`football-league/fixtures/${leagueId}`);
     fixtures.forEach(fixure=>{
       const {fixture_id} = fixure;
       if(fixture_id){
         console.log(`batch update league ${leagueId} fixure_id ${fixture_id}`)
-        const fixtureRef = fixureCollection.doc(String(fixture_id));
-        batch.update(fixtureRef, fixure);
+        fixtureCollectionRef.child(String(fixture_id)).update(fixure);
       }
     });
     console.log('commit batch fixtures')
-    return batch.commit();
 
   })
   .catch(err=>console.error(err));
 }
 
-function liveScore(db,headers){
+function liveScore(db){
   if(!matchDailyCount.length) {
     console.log("no match for today")
     return;
@@ -222,23 +201,22 @@ function liveScore(db,headers){
   })
 }
 
-function fetchLiveScore(db,headers,leagues){
+function fetchLiveScore(db,leagues){
   fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/live/${leagues}`,{timezone: 'Europe/London'})
   .then(({fixtures})=>{
     if(!fixtures||!fixtures.length)return;
-    console.log(`fetched live fixture ${leagues} fetching fixures Collection`)
-    const batch = db.batch();
+    console.log(`fetched live fixture ${leagues} fetching fixtures Collection`)
+    const fixtureCollectionRef = db.ref(`football-league/fixtures`);
     fixtures.forEach(fixure=>{
       const {fixture_id, league_id} = fixure;
-      const fixureCollection = db.collection("football-league").doc(String(league_id)).collection('fixtures');
+      const fixureCollection = fixtureCollectionRef.child(String(league_id)).child(String(fixture_id));
       if(fixture_id){
         console.log(`batch update livescore ${league_id} fixure_id ${fixture_id}`)
-        const fixtureRef = fixureCollection.doc(String(fixture_id));
-        batch.update(fixtureRef, fixure);
+        fixureCollection.update(fixure);
       }
     });
     console.log('commit batch fixtures')
-    return batch.commit();
+    return;
   }).catch( (error) => {
     console.error(error);
   });
