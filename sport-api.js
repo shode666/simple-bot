@@ -20,7 +20,7 @@ module.exports = function(db){
       startDailyUpdate(db,leagueId);
     });
     //* for test
-    setTimeout(()=>startDailyUpdate(db,leagueId),60000);
+    setTimeout(()=>startDailyUpdate(db,leagueId),1000*60);
     m+=5;
     if(m>=60){
       h++; m=0;
@@ -29,7 +29,7 @@ module.exports = function(db){
   schedule.scheduleJob('0 8 * * *', ()=>{
     liveScore(db);
   });
-  setTimeout(()=>liveScore(db),120000)
+  setTimeout(()=>liveScore(db),1000*180)
 }
 
 function initLeague(db,leagueId){
@@ -68,7 +68,7 @@ function initLeague(db,leagueId){
 }
 
 function startDailyUpdate(db,leagueId){
-
+  console.log('Start Daily update task')
   const collection = db.ref(`football-league/fixtures/${String(leagueId)}`);
   const today = moment().clone().tz('Europe/London');
   const startTz = today.startOf('day').unix();
@@ -99,9 +99,9 @@ function startDailyUpdate(db,leagueId){
 
     quota -= matches.length;
     const eventDates = matches.map(o=>o.event_timestamp);
-    const minTime = Math.min(eventDates);
-    const maxTime = Math.max(eventDates)+MATCH_LENGTH;
-    matchDailyCount.push({leagueId,minTime,maxTime})
+    const minTime = _.min(eventDates);
+    const maxTime = _.max(eventDates)+MATCH_LENGTH;
+    matchDailyCount.push({leagueId,minTime,maxTime});
     matches.forEach(match=>{
       // call Odd now
       setTimeout(()=>{
@@ -179,17 +179,19 @@ function liveScore(db){
     console.log("no match for today")
     return;
   }
+  console.log('Start finding Match Day')
   const leagues = matchDailyCount.map(o=>o.leagueId).join("-");
   console.log("Enter Live score for league_ids",leagues)
   const minTime = Math.min(matchDailyCount.map(o=>o.minTime));
-  let maxTime = Math.man(matchDailyCount.map(o=>o.maxTime));
+  let maxTime = Math.max(matchDailyCount.map(o=>o.maxTime));
+  console.log('fetch Range',minTime,'to',maxTime)
   const startTime = new Date(minTime*1000);
   const endTime = new Date(maxTime*1000);
   console.log("Fetch every 15 minute start",startTime,"end",endTime)
   const today = moment().clone().tz('Europe/London');
   const formatToday = today.format("YYYY-MM-DD");
 
-  schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/15 * * * *` }, ()=>{
+  schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/15 * * * *`}, ()=>{
     fetchLiveScore(db,leagues);
   });
 
@@ -203,6 +205,7 @@ function liveScore(db){
 }
 
 function fetchLiveScore(db,leagues){
+  console.log('Start fetch live score.')
   fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/live/${leagues}`,{timezone: 'Europe/London'})
   .then(({fixtures})=>{
     if(!fixtures||!fixtures.length)return;
