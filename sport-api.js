@@ -20,7 +20,7 @@ module.exports = function(db){
       startDailyUpdate(db,leagueId);
     });
     //* for test
-    startDailyUpdate(db,leagueId);
+    setTimeout(()=>startDailyUpdate(db,leagueId),60000);
     m+=5;
     if(m>=60){
       h++; m=0;
@@ -29,6 +29,7 @@ module.exports = function(db){
   schedule.scheduleJob('0 8 * * *', ()=>{
     liveScore(db);
   });
+  setTimeout(()=>liveScore(db),120000)
 }
 
 function initLeague(db,leagueId){
