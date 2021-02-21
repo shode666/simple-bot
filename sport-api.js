@@ -190,8 +190,11 @@ function liveScore(db){
   console.log("Fetch every 15 minute start",startTime,"end",endTime)
   const today = moment().clone().tz('Europe/London');
   const formatToday = today.format("YYYY-MM-DD");
-
-  schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/15 * * * *`}, ()=>{
+  const startM = moment(startTime)
+  const endM = moment(endTime)
+  const minuteDiff = endM.diff(startM,'minutes')
+  const frequency = Math.ceil(minuteDiff/80)
+  schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/${frequency} * * * *`}, ()=>{
     fetchLiveScore(db,leagues);
   });
 
@@ -205,7 +208,9 @@ function liveScore(db){
 }
 
 function fetchLiveScore(db,leagues){
-  console.log('Start fetch live score.')
+  console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+  console.log('~~~ Start fetch live score. ~~~')
+  console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
   fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/live/${leagues}`,{timezone: 'Europe/London'})
   .then(({fixtures})=>{
     if(!fixtures||!fixtures.length)return;
