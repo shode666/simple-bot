@@ -18,5 +18,8 @@
     "moment-timezone": "^0.5.33",
     "node-schedule": "^2.0.0",
     "node-schedule-tz": "^1.2.1-4"
+  },
+  "devDependencies": {
+    "eslint": "^7.20.0"
   }
 }
