@@ -186,13 +186,13 @@ function liveScore(db){
   console.log('fetch Range',minTime,'to',maxTime)
   const startTime = new Date(minTime*1000);
   const endTime = new Date(maxTime*1000);
-  console.log("Fetch every 15 minute start",startTime,"end",endTime)
   const today = moment().clone().tz('Europe/London');
   const formatToday = today.format("YYYY-MM-DD");
   const startM = moment(startTime)
   const endM = moment(endTime)
   const minuteDiff = endM.diff(startM,'minutes')
-  const frequency = Math.ceil(minuteDiff/80)
+  const frequency = Math.max(3,Math.ceil(minuteDiff/80));
+  console.log(`Fetch every ${frequency} minute start ${startTime} end ${endTime}`)
   schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/${frequency} * * * *`}, ()=>{
     fetchLiveScore(db,leagues);
   });
