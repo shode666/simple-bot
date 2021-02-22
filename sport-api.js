@@ -183,7 +183,6 @@ function liveScore(db){
   console.log("Enter Live score for league_ids",leagues)
   const minTime = Math.min(matchDailyCount.map(o=>o.minTime));
   let maxTime = Math.max(matchDailyCount.map(o=>o.maxTime));
-  console.log('fetch Range',minTime,'to',maxTime)
   const startTime = new Date(minTime*1000);
   const endTime = new Date(maxTime*1000);
   const today = moment().clone().tz('Europe/London');
@@ -192,7 +191,7 @@ function liveScore(db){
   const endM = moment(endTime)
   const minuteDiff = endM.diff(startM,'minutes')
   const frequency = Math.max(3,Math.ceil(minuteDiff/80));
-  console.log(`Fetch every ${frequency} minute start ${startTime} end ${endTime}`)
+  console.log(`Fetch every ${frequency} minute START ${startM.format("DD MMM YYYY HH:mm")} TO ${endM.format("DD MMM YYYY HH:mm")}`)
   schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/${frequency} * * * *`}, ()=>{
     fetchLiveScore(db,leagues);
   });
