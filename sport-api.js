@@ -186,7 +186,7 @@ function liveScore(db){
   const startTime = new Date(minTime*1000);
   const endTime = new Date(maxTime*1000);
   const startM = moment(startTime)
-  const endM = moment(endTime)
+  const endM = moment(endTime).add(20,'minutes');
   const minuteDiff = endM.diff(startM,'minutes')
   const frequency = Math.max(3,Math.ceil(minuteDiff/80));
   console.log(`Fetch every ${frequency} minute START ${startM.format("DD MMM YYYY HH:mm")} TO ${endM.format("DD MMM YYYY HH:mm")}`)
