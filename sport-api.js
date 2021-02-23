@@ -193,6 +193,11 @@ function liveScore(db){
   schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/${frequency} * * * *`}, ()=>{
     fetchLiveScore(db,leagues);
   });
+  schedule.scheduleJob(endM.toDate(), ()=>{
+    __matchDailyCount.forEach(({leagueId})=>{
+      updateDayFixture(db,leagueId,endM.format("YYYY-MM-DD"))
+    })
+  });
 }
 
 function fetchLiveScore(db,leagues){
@@ -219,9 +224,9 @@ function fetchLiveScore(db,leagues){
     console.log('-- finding game ended')
     const endFix = _.differenceWith(__liveFixture, newLiveFix, _.isEqual);
 
-    fetchEndedGame(db,endFix);
-
     __liveFixture = newLiveFix;
+
+    fetchEndedGame(db,endFix);
     return;
   }).catch( (error) => {
     console.error(error);
