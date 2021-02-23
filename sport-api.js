@@ -224,7 +224,9 @@ function fetchLiveScore(db,leagues){
     console.log('-- finding game ended')
     const endFix = _.differenceWith(__liveFixture, newLiveFix, _.isEqual);
 
-    __liveFixture = newLiveFix;
+    if(newLiveFix.length){
+      __liveFixture = newLiveFix;
+    }
 
     fetchEndedGame(db,endFix);
     return;
