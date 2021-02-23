@@ -193,9 +193,10 @@ function liveScore(db){
   schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/${frequency} * * * *`}, ()=>{
     fetchLiveScore(db,leagues);
   });
-  schedule.scheduleJob(endM.toDate(), ()=>{
-    __matchDailyCount.forEach(({leagueId})=>{
-      updateDayFixture(db,leagueId,endM.format("YYYY-MM-DD"))
+  __matchDailyCount.forEach(({leagueId,maxTime})=>{
+      const endDay = moment(maxTime*1000).add(20,'minutes');
+      schedule.scheduleJob(endDay.toDate(), ()=>{
+      updateDayFixture(db,leagueId,endDay.format("YYYY-MM-DD"))
     })
   });
 }
