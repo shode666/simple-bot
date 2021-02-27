@@ -29,7 +29,6 @@ module.exports = function(db){
   schedule.scheduleJob('0 8 * * *', ()=>{
     liveScore(db);
   });
-  setTimeout(()=>liveScore(db),90000*(idx+2))
 }
 
 function initLeague(db,leagueId){
