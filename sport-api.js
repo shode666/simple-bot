@@ -6,12 +6,16 @@ const _ =require('lodash');
 let __matchDailyCount = [];
 let __liveFixture = [];
 const MATCH_LENGTH = 120*60;
+let __quota = 0;
+let __match_count = 0;
 module.exports = function(db){
   const __LEAGUES = process.env.RAPIDAPI_LEAGUE_ID||"";
 
   schedule.scheduleJob('0 0 * * *', ()=>{
     console.log("reset match day counter");
     __matchDailyCount = [];
+    __quota=0;
+    __match_count = 0;
   })
     let h=1,m=0,idx=1;
   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
@@ -29,6 +33,7 @@ module.exports = function(db){
   schedule.scheduleJob('0 8 * * *', ()=>{
     liveScore(db);
   });
+
 }
 
 function initLeague(db,leagueId){
@@ -42,11 +47,13 @@ function initLeague(db,leagueId){
     }
     fetch(`https://${process.env.RAPIDAPI_HOST}/v2/leagues/league/${leagueId}`,{timezone: 'Europe/London'})
     .then(({leagues})=>{
+      __quota++;
       if(!leagues||!leagues.length)return;
       return rootRef.child(`league/${leagueId}`).set(leagues[0]);
     })
     .then(() =>fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/league/${leagueId}`,{timezone: 'Europe/London'}))
     .then(({fixtures})=>{
+      __quota++;
       if(!fixtures||!fixtures.length)return;
       console.log(`fetched league ${leagueId} fetching fixtures Collection`)
       const fixureCollection = rootRef.child(`fixtures/${leagueId}`);
@@ -94,12 +101,16 @@ function startDailyUpdate(db,leagueId){
       leagueStading(db,leagueId);
     },setDelay())
     console.log('fixtures found ',matches.length)
+    __match_count = matches.length;
     if(matches.length===0) return;
 
     const eventDates = matches.map(o=>o.event_timestamp);
     const minTime = _.min(eventDates);
     const maxTime = _.max(eventDates)+MATCH_LENGTH;
     __matchDailyCount.push({leagueId,minTime,maxTime});
+    setTimeout(()=>{
+      fetchEndedGame(db,matches.map(m=>m.fixture_id))
+    },setDelay())
     matches.forEach(match=>{
       // call Odd now
       setTimeout(()=>{
@@ -115,6 +126,7 @@ function leagueStading(db,leagueId){
   if(!leagueId) return;
   fetch(`https://${process.env.RAPIDAPI_HOST}/v2/leagueTable/${leagueId}`)
   .then( ({standings:[tableRanking]}) => {
+    __quota++;
     if(!tableRanking||!tableRanking.length)return;
       console.log(`fetched league ${leagueId} fetching teams Collection`)
       tableRanking.forEach(ranking=>{
@@ -138,6 +150,7 @@ function leagueOdd(db,leagueId,match){
   const fixtureCollectionRef = db.ref(`football-league/fixtures/${leagueId}`);
   fetch(`https://${process.env.RAPIDAPI_HOST}/v2/odds/fixture/${fixtureId}/label/1`)
   .then( ({odds}) => {
+    __quota++;
     if(!odds||!odds.length)return;
     const {fixture,bookmakers} = odds[0];
     if(fixture&&bookmakers){
@@ -156,6 +169,7 @@ function updateDayFixture(db,leagueId,formatDate){
   if(!leagueId) return;
   fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/league/${leagueId}/${formatDate}`, {timezone: 'Europe/London'})
   .then( ({fixtures}) => {
+    __quota++;
     if(!fixtures||!fixtures.length)return;
     console.log(`fetched league ${leagueId} fetching fixtures Collection`)
     const fixtureCollectionRef = db.ref(`football-league/fixtures/${leagueId}`);
@@ -182,14 +196,12 @@ function liveScore(db){
   console.log("Enter Live score for league_ids",leagues)
   const minTime = _.min(__matchDailyCount.map(o=>o.minTime));
   let maxTime = _.max(__matchDailyCount.map(o=>o.maxTime));
-  const startTime = new Date(minTime*1000);
-  const endTime = new Date(maxTime*1000);
-  const startM = moment(startTime)
-  const endM = moment(endTime).add(20,'minutes');
+  const startM = moment(Math.max(minTime*1000,new Date().getTime()));
+  const endM = moment(maxTime*1000).add(20,'minutes');
   const minuteDiff = endM.diff(startM,'minutes')
-  const frequency = Math.max(3,Math.ceil(minuteDiff/80));
+  const frequency = Math.max(3,Math.ceil(minuteDiff/Math.min(1,100-__quota-__match_count)));
   console.log(`Fetch every ${frequency} minute START ${startM.format("DD MMM YYYY HH:mm")} TO ${endM.format("DD MMM YYYY HH:mm")}`)
-  schedule.scheduleJob({ start: startTime, end: endTime, rule: `*/${frequency} * * * *`}, ()=>{
+  schedule.scheduleJob({ start: startM, end: endM, rule: `*/${frequency} * * * *`}, ()=>{
     fetchLiveScore(db,leagues);
   });
   __matchDailyCount.forEach(({leagueId,maxTime:endLeagueMatch})=>{
@@ -205,29 +217,31 @@ function fetchLiveScore(db,leagues){
   console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
   console.log('~~~ Start fetch live score. ~~~')
   console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+  console.log(moment().format("DD MM YYYY HH:mm Z"))
+  if(__quota>100) return;
   fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/live/${leagues}`,{timezone: 'Europe/London'})
   .then(({fixtures})=>{
-    if(!fixtures||!fixtures.length)return;
-    console.log(`fetched live fixture ${leagues} fetching fixtures Collection`)
-    const fixtureCollectionRef = db.ref(`football-league/fixtures`);
+    __quota++;
     const newLiveFix = []
-    fixtures.forEach(fixure=>{
-      const {fixture_id, league_id} = fixure;
-      newLiveFix.push(fixture_id)
-      const fixureCollection = fixtureCollectionRef.child(String(league_id)).child(String(fixture_id));
-      if(fixture_id){
-        console.log(`batch update livescore ${league_id} fixure_id ${fixture_id}`)
-        fixureCollection.update(fixure);
-      }
-    });
-    console.log('commit batch fixtures')
+    if(fixtures&&fixtures.length){
+      console.log(`fetched live fixture ${leagues} fetching fixtures Collection`)
+      const fixtureCollectionRef = db.ref(`football-league/fixtures`);
+      fixtures.forEach(fixure=>{
+        const {fixture_id, league_id} = fixure;
+        newLiveFix.push(fixture_id)
+        const fixureCollection = fixtureCollectionRef.child(String(league_id)).child(String(fixture_id));
+        if(fixture_id){
+          console.log(`batch update livescore ${league_id} fixure_id ${fixture_id}`)
+          fixureCollection.update(fixure);
+        }
+      });
+      console.log('commit batch fixtures')
+    }
     // finding game ended
     console.log('-- finding game ended')
     const endFix = _.differenceWith(__liveFixture, newLiveFix, _.isEqual);
 
-    if(newLiveFix.length){
-      __liveFixture = newLiveFix;
-    }
+    __liveFixture = newLiveFix;
 
     fetchEndedGame(db,endFix);
     return;
@@ -244,6 +258,7 @@ function fetchEndedGame(db,endFix){
   endFix.forEach(fixtureId=>{
     fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/id/${fixtureId}`,{timezone: 'Europe/London'})
     .then(({fixtures})=>{
+      __quota++;
       if(!fixtures||!fixtures.length)return;
         console.log(`fetched end fixture ${fixtureId}`)
         const fixure = fixtures[0];
