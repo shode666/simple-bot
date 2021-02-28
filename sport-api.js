@@ -108,9 +108,6 @@ function startDailyUpdate(db,leagueId){
     const minTime = _.min(eventDates);
     const maxTime = _.max(eventDates)+MATCH_LENGTH;
     __matchDailyCount.push({leagueId,minTime,maxTime});
-    setTimeout(()=>{
-      fetchEndedGame(db,matches.map(m=>m.fixture_id))
-    },setDelay())
     matches.forEach(match=>{
       // call Odd now
       setTimeout(()=>{
@@ -251,21 +248,21 @@ function fetchLiveScore(db,leagues){
 }
 
 function fetchEndedGame(db,endFix){
-  if(!endFix.length) return console.log('no ended');
+  if(!endFix.length) return console.log('no matches');
 
-  console.log('-- // ended = ',endFix)
+  console.log('-- // full fixture detail for = ',endFix)
   const fixtureCollectionRef = db.ref(`football-league/fixtures`);
   endFix.forEach(fixtureId=>{
     fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/id/${fixtureId}`,{timezone: 'Europe/London'})
     .then(({fixtures})=>{
       __quota++;
       if(!fixtures||!fixtures.length)return;
-        console.log(`fetched end fixture ${fixtureId}`)
+        console.log(`fetched fixture ${fixtureId}`)
         const fixure = fixtures[0];
         const {fixture_id, league_id} = fixure;
         const fixureCollection = fixtureCollectionRef.child(String(league_id)).child(String(fixture_id));
         if(fixture_id){
-          console.log(`batch update end game FT ${league_id} fixure_id ${fixture_id}`)
+          console.log(`batch update game full detail ${league_id} fixure_id ${fixture_id}`)
           fixureCollection.update(fixure);
         }
     });
