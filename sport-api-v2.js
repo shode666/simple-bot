@@ -13,6 +13,7 @@ module.exports = function(db){
   schedule.scheduleJob('1 0 * * *', async ()=>{
     mainSchedule(db)
   });
+  mainSchedule(db);
 }
 
 async function mainSchedule(db){
@@ -134,12 +135,13 @@ async function startDailyUpdate(db,leagueId){
           todayMatch.max = endTm.clone();
         }
 
-        /*
-         * __quota--;
-         * schedule.scheduleJob(startTm.clone().add(-__fetchLineUpBefore,'hour').toDate(), ()=>{
-         *   fetchFixtureByIds(db,[fixture_id])
-         * });
-         */
+        if(__fetchLineUpBefore>0){
+          __quota--;
+            schedule.scheduleJob(startTm.clone().add(-__fetchLineUpBefore,'hour').toDate(), ()=>{
+            fetchFixtureByIds(db,[fixture_id])
+          });
+        }
+
         __quota--;
         schedule.scheduleJob(endTm.toDate(), ()=>{
           fetchFixtureByIds(db,[fixture_id])
