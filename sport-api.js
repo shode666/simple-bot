@@ -9,32 +9,40 @@ const MATCH_LENGTH = 120*60;
 let __quota = 90;
 let __match_count = 0;
 module.exports = function(db){
-  const __LEAGUES = process.env.RAPIDAPI_LEAGUE_ID||"";
-
-  schedule.scheduleJob('0 0 * * *', ()=>{
-    console.log("reset match day counter");
-    __matchDailyCount = [];
-    __quota=90;
-    __match_count = 0;
-  })
-    let h=1,m=0,idx=1;
-  __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
-    console.log('football-api','init and job for',leagueId)
-    initLeague(db,leagueId);
-    schedule.scheduleJob(`${m} ${h} * * *`, ()=>{
-      startDailyUpdate(db,leagueId);
-    });
-    setTimeout(()=>startDailyUpdate(db,leagueId),90000*(idx++));
-    m+=5;
-    if(m>=60){
-      h++; m=0;
-    }
-  });
-  schedule.scheduleJob('0 8 * * *', ()=>{
-    liveScore(db);
-  });
-
+  fetchEndedGame(db,['592769']);
 }
+
+/*
+ * module.exports = function(db){
+ *   const __LEAGUES = process.env.RAPIDAPI_LEAGUE_ID||"";
+ */
+
+/*
+ *   schedule.scheduleJob('0 0 * * *', ()=>{
+ *     console.log("reset match day counter");
+ *     __matchDailyCount = [];
+ *     __quota=90;
+ *     __match_count = 0;
+ *   })
+ *     let h=1,m=0,idx=1;
+ *   __LEAGUES.split(",").filter(o=>!!o).forEach(leagueId=> {
+ *     console.log('football-api','init and job for',leagueId)
+ *     initLeague(db,leagueId);
+ *     schedule.scheduleJob(`${m} ${h} * * *`, ()=>{
+ *       startDailyUpdate(db,leagueId);
+ *     });
+ *     setTimeout(()=>startDailyUpdate(db,leagueId),90000*(idx++));
+ *     m+=5;
+ *     if(m>=60){
+ *       h++; m=0;
+ *     }
+ *   });
+ *   schedule.scheduleJob('0 8 * * *', ()=>{
+ *     liveScore(db);
+ *   });
+ */
+
+// }
 
 function initLeague(db,leagueId){
   const rootRef = db.ref("football-league")

@@ -8,9 +8,10 @@ const MATCH_LENGTH = 2;
 let __quota = 90;
 let __Leagues = [];
 let __fetchLineUpBefore = 1;
+
 module.exports = function(db){
 
-  schedule.scheduleJob('1 0 * * *', async ()=>{
+  schedule.scheduleJob('1 0 * * *', ()=>{
     mainSchedule(db)
   });
   mainSchedule(db);
@@ -40,7 +41,7 @@ async function mainSchedule(db){
   const frequency = Math.max(3,Math.ceil(minuteDiff/Math.max(1,__quota)));
   console.log('Setting job every',frequency,'from',minLiveTm,'to',maxLiveTm)
   schedule.scheduleJob({ start: minLiveTm, end: maxLiveTm, rule: `*/${frequency} * * * *`}, ()=>{
-    fetchLiveScore(db,leagues);
+    fetchLiveScore(db,leagues,frequency);
   });
 }
 
@@ -125,7 +126,7 @@ async function startDailyUpdate(db,leagueId){
     console.log('fixtures found ',matches.length)
     if(matches.length===0) return;
     await Promise.all(matches.map( async match=>{
-      const {event_timestamp,fixture_id} = match;
+      const {event_timestamp,league_id,fixture_id} = match;
       const startTm = moment(event_timestamp*1000);
       const endTm = startTm.clone().add(MATCH_LENGTH,'hour');
         if(startTm.isBefore(todayMatch.min)){
@@ -135,16 +136,9 @@ async function startDailyUpdate(db,leagueId){
           todayMatch.max = endTm.clone();
         }
 
-        if(__fetchLineUpBefore>0){
-          __quota--;
-            schedule.scheduleJob(startTm.clone().add(-__fetchLineUpBefore,'hour').toDate(), ()=>{
-            fetchFixtureByIds(db,[fixture_id])
-          });
-        }
-
         __quota--;
         schedule.scheduleJob(endTm.toDate(), ()=>{
-          fetchFixtureByIds(db,[fixture_id])
+          fetchFixtureByIds(db,[{league_id,fixture_id}],true)
         });
       await leagueOdd(db,leagueId,match);
     }));
@@ -155,24 +149,34 @@ async function startDailyUpdate(db,leagueId){
 }
 
 
-async function fetchFixtureByIds(db,endFix){
+async function fetchFixtureByIds(db,endFix,isExtendIfNotEnded){
   if(!endFix.length) return console.log('no matches');
   console.log('-- // full fixture detail for = ',endFix)
   try{
     const fixtureCollectionRef = db.ref(`football-league/fixtures`);
-    await Promise.all(endFix.map(async (fixtureId)=>{
+    const extendList = [];
+    await Promise.all(endFix.map(async ({league_id:leagueId,fixture_id:fixtureId})=>{
+      const fixtureRef = await db.ref(`football-league/fixtures/${String(leagueId)}/${String(fixtureId)}`).get();
+      const {statusShort:prevStatus} = fixtureRef.val();
+      if(prevStatus !== "2H") return console.log("Match not end fixture status to update")
       __quota--;
       const {fixtures} = await fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/id/${fixtureId}`,{timezone: 'Europe/London'});
       if(!fixtures||!fixtures.length)return;
       console.log(`fetched fixture ${fixtureId}`)
       const fixure = fixtures[0];
-      const {fixture_id, league_id} = fixure;
+      const {fixture_id, league_id, statusShort} = fixure;
       const fixureCollection = fixtureCollectionRef.child(String(league_id)).child(String(fixture_id));
-      if(fixture_id){
+      if(isExtendIfNotEnded && statusShort === '2H'){
+        console.log(`batch update game full detail ${league_id} fixure_id ${fixture_id}`)
+        extendList.push(fixture_id);
+      }else if(fixture_id){
         console.log(`batch update game full detail ${league_id} fixure_id ${fixture_id}`)
         await fixureCollection.update(fixure);
       }
     }));
+    if(extendList.length){
+      setTimeout(()=>fetchFixtureByIds(db,extendList,isExtendIfNotEnded),5*60*1000)
+    }
   }catch(err){
     console.error('fetchFixtureByIds',err)
   }
@@ -199,10 +203,10 @@ async function leagueOdd(db,leagueId,match){
   }
 }
 
-async function fetchLiveScore(db,leagues){
-  console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+async function fetchLiveScore(db,leagues,frequency){
+  console.log(`~~~~~~~~~~ FREQ(${`00${frequency}`.substring(String(frequency).length)}) ~~~~~~~~~~~`)
   console.log('~~~ Start fetch live score. ~~~')
-  console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+  console.log(`~~~~~~~~~~ Quota ${`00${__quota}`.substring(String(__quota).length)} ~~~~~~~~~~~`)
   console.log(moment().format("DD MM YYYY HH:mm Z"))
   if(__quota<0) return;
   __quota--;
@@ -215,7 +219,7 @@ async function fetchLiveScore(db,leagues){
       const fixureCollection = fixtureCollectionRef.child(String(league_id)).child(String(fixture_id));
       if(fixture_id){
         console.log(`batch update livescore ${league_id} fixure_id ${fixture_id}`)
-        await fixureCollection.update(fixure);
+        await fixureCollection.update({...fixure,"-ts": new Date().getTime()});
       }
     }));
     console.log('commit batch fixtures')
