@@ -156,23 +156,25 @@ async function fetchFixtureByIds(db,endFix,isExtendIfNotEnded){
     const fixtureCollectionRef = db.ref(`football-league/fixtures`);
     const extendList = [];
     await Promise.all(endFix.map(async ({league_id:leagueId,fixture_id:fixtureId})=>{
-      const fixtureRef = await db.ref(`football-league/fixtures/${String(leagueId)}/${String(fixtureId)}`).get();
-      const {statusShort:prevStatus} = fixtureRef.val();
-      if(prevStatus !== "2H") return console.log("Match not end fixture status to update")
-      __quota--;
-      const {fixtures} = await fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/id/${fixtureId}`,{timezone: 'Europe/London'});
-      if(!fixtures||!fixtures.length)return;
-      console.log(`fetched fixture ${fixtureId}`)
-      const fixure = fixtures[0];
-      const {fixture_id, league_id, statusShort} = fixure;
-      const fixureCollection = fixtureCollectionRef.child(String(league_id)).child(String(fixture_id));
-      if(isExtendIfNotEnded && statusShort === '2H'){
-        console.log(`batch update game full detail ${league_id} fixure_id ${fixture_id}`)
-        extendList.push(fixture_id);
-      }else if(fixture_id){
-        console.log(`batch update game full detail ${league_id} fixure_id ${fixture_id}`)
-        await fixureCollection.update(fixure);
+      const fixtureSnap = await db.ref(`football-league/fixtures/${String(leagueId)}/${String(fixtureId)}`).get();
+      const {statusShort:prevStatus} = fixtureSnap.val();
+      if(prevStatus === "2H"){
+        __quota--;
+        const {fixtures} = await fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/id/${fixtureId}`,{timezone: 'Europe/London'});
+        if(!fixtures||!fixtures.length)return;
+        console.log(`fetched fixture ${fixtureId}`)
+        const fixure = fixtures[0];
+        const {fixture_id, league_id, statusShort} = fixure;
+        const fixureCollection = fixtureCollectionRef.child(String(league_id)).child(String(fixture_id));
+        if(isExtendIfNotEnded && statusShort === '2H'){
+          console.log(`batch update game full detail ${league_id} fixure_id ${fixture_id}`)
+          extendList.push(fixture_id);
+        }else if(fixture_id){
+          console.log(`batch update game full detail ${league_id} fixure_id ${fixture_id}`)
+          await fixureCollection.update(fixure);
+        }
       }
+
     }));
     if(extendList.length){
       setTimeout(()=>fetchFixtureByIds(db,extendList,isExtendIfNotEnded),5*60*1000)
