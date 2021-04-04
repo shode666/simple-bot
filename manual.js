@@ -21,17 +21,18 @@ admin.initializeApp({
 });
 
 const db = admin.database();
-(async () => {
-  const fixtureId = '592775';
-
-  const {fixtures} = await fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/id/${fixtureId}`,{timezone: 'Europe/London'});
-  if(!fixtures||!fixtures.length)return;
-  console.log(`fetched fixture ${fixtureId}`)
-  const fixure = fixtures[0];
-  const {fixture_id, league_id} = fixure;
-  const fixtureCollectionRef = db.ref(`football-league/fixtures`);
-  const fixureCollection = fixtureCollectionRef.child(String(league_id)).child(String(fixture_id));
-  await fixureCollection.update(fixure);
+(async (fixtureIds) => {
+  await Promise.all(fixtureIds.map(async fixtureId=>{
+    const {fixtures} = await fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/id/${fixtureId}`,{timezone: 'Europe/London'});
+    if(!fixtures||!fixtures.length)return;
+    console.log(`fetched fixture ${fixtureId}`)
+    const fixure = fixtures[0];
+    const {fixture_id, league_id} = fixure;
+    const fixtureCollectionRef = db.ref(`football-league/fixtures`);
+    const fixureCollection = fixtureCollectionRef.child(String(league_id)).child(String(fixture_id));
+    await fixureCollection.update(fixure);
+    console.log(`fixture ${fixtureId} updated`)
+  }))
   console.log("DONE");
-  process.exit(1);
-})();
+  process.exit(0);
+})(['592790']);
