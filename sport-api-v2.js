@@ -39,13 +39,15 @@ async function mainSchedule(db){
       }
     }
   }));
-  if(minLiveTm.isBefore(moment()))minLiveTm = moment();
-  const minuteDiff = maxLiveTm.diff(minLiveTm,'minutes')
-  const frequency = Math.max(3,Math.ceil(minuteDiff/Math.max(1,__quota)));
-  console.log('Setting job every',frequency,'from',minLiveTm,'to',maxLiveTm)
-  schedule.scheduleJob({ start: minLiveTm, end: maxLiveTm, rule: `*/${frequency} * * * *`}, ()=>{
-    fetchLiveScore(db,leagues,frequency);
-  });
+  if(minLiveTm&&maxLiveTm){
+    if(minLiveTm.isBefore(moment()))minLiveTm = moment();
+    const minuteDiff = maxLiveTm.diff(minLiveTm,'minutes')
+    const frequency = Math.max(3,Math.ceil(minuteDiff/Math.max(1,__quota)));
+    console.log('Setting job every',frequency,'from',minLiveTm,'to',maxLiveTm)
+    schedule.scheduleJob({ start: minLiveTm, end: maxLiveTm, rule: `*/${frequency} * * * *`}, ()=>{
+      fetchLiveScore(db,leagues,frequency);
+    });
+  }
 }
 
 /*
