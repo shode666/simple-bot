@@ -28,12 +28,15 @@ async function mainSchedule(db){
   let maxLiveTm = null;
   await Promise.all(__Leagues.map( async (league)=>{
     await initLeague(db,league);
-    const {min,max} = await startDailyUpdate(db,league);
-    if(!minLiveTm||minLiveTm.isAfter(min)){
-      minLiveTm = min.clone();
-    }
-    if(!maxLiveTm||maxLiveTm.isBefore(max)){
-      maxLiveTm = max.clone();
+    const intelvalLeague = await startDailyUpdate(db,league);
+    if(intelvalLeague){
+      const {min,max} = intelvalLeague
+      if(!minLiveTm||minLiveTm.isAfter(min)){
+        minLiveTm = min.clone();
+      }
+      if(!maxLiveTm||maxLiveTm.isBefore(max)){
+        maxLiveTm = max.clone();
+      }
     }
   }));
   if(minLiveTm.isBefore(moment()))minLiveTm = moment();
