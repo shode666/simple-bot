@@ -63,7 +63,7 @@ async function initLeague(db,leagueId){
       console.log(`league ${leagueId} "${data.name}"  config founded`);
       return;
     }
-    __quota--;
+    console.log("~~~ using api quota remain",__quota--);
     const {leagues} = await fetch(`https://${process.env.RAPIDAPI_HOST}/v2/leagues/league/${leagueId}`,{timezone: 'Europe/London'});
     if(!leagues||!leagues.length)return console.log('leagues empty');
     await db.ref(`football-league/league/${leagueId}`).set(leagues[0]);
@@ -90,7 +90,7 @@ async function leagueStading(db,leagueId){
   try{
     const teamCollection = db.ref(`football-league/table/${String(leagueId)}`)
     if(!leagueId) return;
-    __quota--;
+    console.log("~~~ using api quota remain",__quota--);
     const {standings:[tableRanking]} = await fetch(`https://${process.env.RAPIDAPI_HOST}/v2/leagueTable/${leagueId}`)
     if(!tableRanking||!tableRanking.length)return console.log(`leagues ${leagueId} no standing data`);
     console.log(`fetched league ${leagueId} fetching teams Collection`)
@@ -117,8 +117,8 @@ async function startDailyUpdate(db,leagueId){
     const today = moment().clone().tz('Europe/London');
     const startTz = today.startOf('day').unix();
     const endTz = today.endOf('day').unix();
-    todayMatch.min = moment(endTz*1000);
-    todayMatch.max = moment(startTz*1000);
+    todayMatch.max = moment(endTz*1000);
+    todayMatch.min = moment(startTz*1000);
 
     console.log(`schedule start`,new Date())
 
@@ -141,7 +141,6 @@ async function startDailyUpdate(db,leagueId){
           todayMatch.max = endTm.clone();
         }
 
-        __quota--;
         schedule.scheduleJob(endTm.toDate(), ()=>{
           fetchFixtureByIds(db,[{league_id,fixture_id}],true)
         });
@@ -164,7 +163,7 @@ async function fetchFixtureByIds(db,endFix,isExtendIfNotEnded){
       const fixtureSnap = await db.ref(`football-league/fixtures/${String(leagueId)}/${String(fixtureId)}`).get();
       const {statusShort:prevStatus} = fixtureSnap.val();
       if(prevStatus === "2H"){
-        __quota--;
+        console.log("~~~ using api quota remain",__quota--);
         const {fixtures} = await fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/id/${fixtureId}`,{timezone: 'Europe/London'});
         if(!fixtures||!fixtures.length)return;
         console.log(`fetched fixture ${fixtureId}`)
@@ -193,7 +192,7 @@ async function leagueOdd(db,leagueId,match){
   try{
     const fixtureId = match?.fixture_id
     const matchVS = `${match?.homeTeam?.team_name} v ${match?.awayTeam?.team_name}`;
-    __quota--;
+    console.log("~~~ using api quota remain",__quota--);
     const {odds} = await fetch(`https://${process.env.RAPIDAPI_HOST}/v2/odds/fixture/${fixtureId}/label/1`);
     if(!odds||!odds.length)return console.log(`no odd data for match`,fixtureId,matchVS);
     const {fixture,bookmakers} = odds[0];
@@ -216,7 +215,7 @@ async function fetchLiveScore(db,leagues,frequency){
   console.log(`~~~~~~~~~~ Quota ${`00${__quota}`.substring(String(__quota).length)} ~~~~~~~~~~~`)
   console.log(moment().format("DD MM YYYY HH:mm Z"))
   if(__quota<0) return;
-  __quota--;
+  console.log("~~~ using api quota remain",__quota--);
   const {fixtures} = await fetch(`https://${process.env.RAPIDAPI_HOST}/v2/fixtures/live/${leagues}`,{timezone: 'Europe/London'});
   if(fixtures&&fixtures.length){
     console.log(`fetched live fixture ${leagues} fetching fixtures Collection`)
@@ -229,7 +228,7 @@ async function fetchLiveScore(db,leagues,frequency){
         await fixureCollection.update({...fixure,"-ts": new Date().getTime()});
       }
     }));
-    console.log('commit batch fixtures')
+    console.log('commit batch fixtures\n')
   }
   return;
 
