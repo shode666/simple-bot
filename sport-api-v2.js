@@ -31,10 +31,10 @@ async function mainSchedule(db){
     const intelvalLeague = await startDailyUpdate(db,league);
     if(intelvalLeague){
       const {min,max} = intelvalLeague
-      if(!minLiveTm||minLiveTm.isBefore(min)){
+      if(!minLiveTm||minLiveTm.isAfter(min)){
         minLiveTm = min.clone();
       }
-      if(!maxLiveTm||maxLiveTm.isAfter(max)){
+      if(!maxLiveTm||maxLiveTm.isBefore(max)){
         maxLiveTm = max.clone();
       }
     }
@@ -117,8 +117,8 @@ async function startDailyUpdate(db,leagueId){
     const today = moment().clone().tz('Europe/London');
     const startTz = today.startOf('day').unix();
     const endTz = today.endOf('day').unix();
-    todayMatch.max = moment(endTz*1000);
-    todayMatch.min = moment(startTz*1000);
+    todayMatch.min = moment(endTz*1000);
+    todayMatch.max = moment(startTz*1000);
 
     console.log(`schedule start`,new Date())
 
@@ -141,10 +141,12 @@ async function startDailyUpdate(db,leagueId){
           todayMatch.max = endTm.clone();
         }
 
+
         schedule.scheduleJob(endTm.toDate(), ()=>{
           fetchFixtureByIds(db,[{league_id,fixture_id}],true)
         });
       await leagueOdd(db,leagueId,match);
+
     }));
   }catch(err){
     console.error('startDailyUpdate',err)
