@@ -31,10 +31,10 @@ async function mainSchedule(db){
     const intelvalLeague = await startDailyUpdate(db,league);
     if(intelvalLeague){
       const {min,max} = intelvalLeague
-      if(!minLiveTm||minLiveTm.isAfter(min)){
+      if(!minLiveTm||minLiveTm.isBefore(min)){
         minLiveTm = min.clone();
       }
-      if(!maxLiveTm||maxLiveTm.isBefore(max)){
+      if(!maxLiveTm||maxLiveTm.isAfter(max)){
         maxLiveTm = max.clone();
       }
     }
